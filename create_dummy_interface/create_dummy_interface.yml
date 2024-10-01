@@ -1,0 +1,59 @@
+---
+- name: Create and configure a persistent dummy network interface
+  hosts: all
+  gather_facts: no
+  become: yes  # Use sudo to execute commands
+  tasks:
+    - name: Ensure dummy kernel module is loaded at boot
+      lineinfile:
+        path: /etc/modules
+        line: dummy
+        state: present
+
+    - name: Create the systemd service for dummy interface
+      copy:
+        dest: /etc/systemd/system/dummy-interface.service
+        content: |
+          [Unit]
+          Description=Create dummy network interface vip1
+          After=network.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/sbin/ip link add vip1 type dummy
+          ExecStart=/sbin/ip link set vip1 up
+          RemainAfterExit=yes
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Enable the dummy interface service
+      systemd:
+        name: dummy-interface.service
+        enabled: yes
+        state: started
+
+    - name: Configure netplan to assign IP to vip1
+      copy:
+        dest: /etc/netplan/01-netcfg.yaml
+        content: |
+          network:
+              version: 2
+              renderer: networkd
+              ethernets:
+                  eth0:
+                      dhcp4: true
+                  vip1:
+                      addresses:
+                          - 172.16.1.10/24
+                      optional: true
+      notify: Apply netplan
+
+  handlers:
+    - name: Reload systemd
+      command: systemctl daemon-reload
+
+    - name: Apply netplan
+      command: netplan apply
+
