@@ -1,3 +1,11 @@
 use the following command to run the ansible playbook
 
-ansible-playbook -i hosts dummy_interface_setup.yml --ask-become-pass
+ansible-playbook -i hosts create_dummy_interface.yml --ask-become-pass
+
+
+
+
+to configure ssh
+for host in `cat hosts |grep 10`; do ssh -oStrictHostKeyChecking=no ${host} uptime; done
+for host in `cat hosts |grep 10`; do ssh-copy-id ${host}; done
+for host in `cat hosts |grep 10`; do ssh ${host} uptime; done
